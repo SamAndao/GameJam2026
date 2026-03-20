@@ -1,3 +1,7 @@
+
+
+
+
 import { defineConfig } from "vite";
 
 const kaplayCongrats = () => {
@@ -15,7 +19,7 @@ const kaplayCongrats = () => {
 
 export default defineConfig({
     // index.html out file will start with a relative path for script
-    base: "./",
+    base: "/GameJam2026/",
     server: {
         port: 3001,
     },
