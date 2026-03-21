@@ -1,18 +1,18 @@
 import kaplay from "kaplay";
 // import "kaplay/global"; // uncomment if you want to use without the k. prefix
-
+console.log("Vite is working!");
 const k = kaplay({
     width:1536,
     height:768,
-    // letterbox: true,
-    debug: true
+    letterbox: true,
+    debug: true,
 
 });
 
 const playerStats = {
     speed: 200,
     speedScaling: 1,
-    attackSpeed: .7, // seconds per attack
+    attackSpeed: .2, // seconds per attack
 }
 
 const gameStats = {
@@ -282,7 +282,7 @@ const initiateMovement = (player, makesSteps = false) => {
 }
 
 
-const spawnProjectile = (spriteName, getFrom, getDestination, dmg = 1) => {
+const spawnProjectile = (spriteName, getFrom, getDestination, spread = 0, dmg = 1) => {
     let attackTimer = 0;
     k.onKeyPress("up", () => playerStats.attackSpeed -= .05 );
     k.onKeyPress("down", () => playerStats.attackSpeed += .05);
@@ -294,7 +294,11 @@ const spawnProjectile = (spriteName, getFrom, getDestination, dmg = 1) => {
         if (attackTimer > playerStats.attackSpeed) {
             const from = getFrom();
             const destination = getDestination();
-            const dir = vec2(destination).sub(from).unit();
+
+            const randX = k.rand(-spread, spread);
+            const randY = k.rand(-spread, spread);
+            console.log(randX, randY)
+            const dir = vec2(destination.x + randX, destination.y + randY).sub(from).unit();
     
             const projectile = add([
                 sprite(spriteName),
@@ -320,7 +324,8 @@ const initiateBasicAttack = (player) => {
     spawnProjectile(
         'sampleProjectile',
         () => vec2(player.pos),    
-        () => mousePos()             
+        () => mousePos(),
+        0           
     );
 }
 
@@ -342,8 +347,8 @@ function addWallBoundaries() {
     add([rect(WALL, height()), pos(width(), 0), area(), body({ isStatic: true })]);
 }
 
-function setBackgroundImage(spriteName, r = 0, g = 0, b = 0) { 
-    k.setBackground(r,g,b);
+function setBackgroundImage(spriteName, rgb) { 
+    k.setBackground(rgb);
     const bg = add([
         sprite(spriteName),
         pos(k.center()),
@@ -363,7 +368,7 @@ k.scene("forest-1", () => {
     addWallBoundaries();
     layers(['background', 'shadow', 'objects', 'effects-back', 'entities', 'effects-front', 'ui'], 'background');
 
-    setBackgroundImage('bg-forest-1', 180, 131, 86)
+    setBackgroundImage('bg-forest-1', rgb(95, 107, 15))
 
     const map = [
         '                ',
@@ -381,7 +386,7 @@ k.scene("forest-1", () => {
         tileWidth: 96,
         tileHeight: 96,
         tiles: {
-          
+
         }
     };
 
