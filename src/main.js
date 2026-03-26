@@ -363,7 +363,7 @@ k.scene("forest-1", () => {
     addWallBoundaries();
     layers(['background', 'shadow', 'objects', 'effects-back', 'entities', 'effects-front', 'ui'], 'background');
 
-    setBackgroundImage('bg-forest-1', 180, 131, 86)
+    setBackgroundImage('bg-forest-1', 63, 73, 0)
 
     const map = [
         '                ',
