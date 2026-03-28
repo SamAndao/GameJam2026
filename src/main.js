@@ -23,7 +23,7 @@ const playerStats = {
     speed: 200,
     speedScaling: 1,
     attack: 50,
-    attackSpeed: .4, // seconds per attack
+    attackSpeed: .45, // seconds per attack
     count: 0,
     dashCooldown: 1,
     dashSpeed: 1000,
@@ -688,20 +688,20 @@ const initiateBasicAttack = (player) => {
             'projectiles',
             () => vec2(player.pos),    
             () => mousePos(),
-            .07, 20           
+            .07, playerStats.attack * .8           
             );
             attackTimer = 0;
         }
     
     });
-    onMouseDown("right",() => {
+    onMousePress("right",() => {
         if (attackTimer > playerStats.attackSpeed && playerStats.mana > 20) {
 
             const projectile = spawnProjectile(
             'projectiles',
             () => vec2(player.pos),    
             () => mousePos(),
-            .07, 80, true,           
+            .07, playerStats.attack*2, true,           
             2);
             attackTimer = 0;
             playerStats.mana -= 20;
@@ -779,7 +779,11 @@ const spawnEnemy = (enemyName, posX, posY, size = 3, player) => {
             destroy(enemy);
             enemy.isDestroyed = true;
             levelStats.forestDefeated++;
+            playerStats.attack += 2;
+            if (playerStats.attackSpeed > .1){
 
+                playerStats.attackSpeed -= .02
+            }
         }
     })
     let canBeHit = true;
@@ -1114,7 +1118,27 @@ function handleEnemySpawn(player, stageStats) {
 
         }
     }
+    let timer = 0
     onUpdate(() => {
+        timer += dt();
+        if (timer > 10) {
+            if (rand(-1,1) > 0) {
+                if (rand(-1,1)>0){
+                    spawnEnemy('spider', rand(380,1000), rand(50, 200), 3, player);
+                } else {
+                    spawnEnemy('spider', rand(530,1000), rand(490, 700), 3, player);
+
+                }
+            } else {
+                if (rand(-1,1)>0){
+                    spawnEnemy('plant', rand(380,1000), rand(50, 200), 3, player);
+                } else {
+                    spawnEnemy('plant', rand(530,1000), rand(490, 700), 3, player);
+
+                }
+            }
+            timer = 0;
+        }
         if (levelStats.forestToSpawn > 0 ) {
             if (rand(-1,1) > 0) {
                 if (rand(-1,1)>0){
