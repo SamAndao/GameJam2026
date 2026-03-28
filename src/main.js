@@ -23,12 +23,19 @@ const playerStats = {
     speed: 200,
     speedScaling: 1,
     attack: 50,
-    attackSpeed: .5, // seconds per attack
+    attackSpeed: .4, // seconds per attack
     count: 0,
     dashCooldown: 1,
     dashSpeed: 1000,
     dashDuration: 0.15,
+    dashVisualCooldown:0,
     regenTime: 1,
+    shielded: 1,
+    shieldedCooldown: 8,
+    shieldDuration: 4,
+    shieldVisualCooldown: 0,
+    shieldMana: 50,
+    dashMana: 20
 }
 
 
@@ -76,8 +83,10 @@ const levelStats = {
 
 // LOAD GAME ASSETS
 // backgrounds
-k.loadSprite('bg-forest-1', 'sprites/backgrounds/Forest-1.png');
+k.loadSprite('bg-forest-1', 'sprites/backgrounds/Forest-1.png'); 
+k.loadSprite('bg-forest-training', 'sprites/backgrounds/forest-blank.png'); 
 k.loadSprite('bg-forest-base', 'sprites/backgrounds/green-bg.png');
+k.loadSprite('Title-Screen_Final', 'sprites/backgrounds/Title-Screen_Final.png');
 k.loadSprite('bg-falling-particles', 'sprites/backgrounds/falling particles.png', {
     sliceX: 6,
     sliceY: 6,
@@ -93,6 +102,11 @@ k.loadSprite('bg-falling-particles', 'sprites/backgrounds/falling particles.png'
 
 
 // projectiles 
+k.loadSprite("projectiles",'sprites/objects/Projectiles.png', {
+    sliceX: 4,
+    sliceY: 1,
+    
+})
 k.loadSprite('sampleProjectile', 'sprites/objects/sampleProjectile.png', {
     sliceX: 8,
     sliceY: 1,
@@ -113,12 +127,20 @@ k.loadSprite('shadow', 'sprites/others/shadow.png')
 k.loadSprite('footsteps', 'sprites/others/footsteps.png')
 k.loadSprite('dashEffect', 'sprites/others/dashEffect.png')
 k.loadSprite('aoeCircle', 'sprites/others/aoeCircle.png')
+k.loadSprite("rock", 'sprites/objects/rock.png')
+k.loadSprite("shield", 'sprites/objects/shield.png')
 
+
+k.loadFont("pixel", "fonts/ByteBounce.ttf");
 
 // user interface 
-
+k.loadSprite("skills", 'sprites/ui/Skills.png')
 k.loadSprite('statusFrame', 'sprites/ui/playerStatusFrame.png')
 k.loadSprite('progressBar', 'sprites/ui/progressBar.png')
+k.loadSprite('Play', 'sprites/ui/Play.png', {
+    sliceX: 1,
+    sliceY: 3,
+})
 
 
 // entities
@@ -235,6 +257,14 @@ const spawnPlayer = (posX = 85, posY = 380) => {
             regenTime += dt()
             if (playerStats.health <= playerStats.maxHealth && regenTime > playerStats.regenTime) {
                 playerStats.health +=5;
+                regenTime = 0;
+            }
+            if (playerStats.mana <= playerStats.maxMana && regenTime > playerStats.regenTime) {
+                if (playerStats.mana + 20 > playerStats.maxMana){
+                    playerStats.mana = playerStats.maxMana
+                } else{
+                    playerStats.mana +=20;
+                }
                 regenTime = 0;
             }
         })
@@ -362,13 +392,60 @@ const initiateMovement = (player, makesSteps = false) => {
         'characterClone'
     )
 
+    const shieldGraphics = add(
+        [
+            sprite("shield"),
+            pos(),
+            scale(.6),
+            anchor("center"),
+            layer('effects-front'),
+            follow(player, vec2(0, -30)),
+            opacity(0)
+        ]
+    )
 
-    k.onKeyPress("left", () => lastDir = "left");
-    k.onKeyPress("right", () => lastDir = "right");
-    k.onKeyPress("up", () => lastDir = "up");
-    k.onKeyPress("down", () => lastDir = "down");
+    let currDashCooldown = 0;
+    onUpdate(() => {
+        if (!canDash) {
+            currDashCooldown += dt();
+            playerStats.dashVisualCooldown = 1-(currDashCooldown/playerStats.dashCooldown)
+        } else {
+            currDashCooldown = 0;
+            playerStats.dashVisualCooldown = 0
+        }
+    })
+    let currShieldCooldown = 0;
+    let isShielding = false;
+    onUpdate(() => {
+        if (isShielding) {
+            currShieldCooldown += dt();
+            playerStats.shieldVisualCooldown = 1-(currShieldCooldown/playerStats.shieldedCooldown)
+        } else {
+            currShieldCooldown = 0;
+            playerStats.shieldVisualCooldown = 0
+        }
+    })
+    k.onKeyPress("q", () => {
+        if (!isShielding && playerStats.mana > playerStats.shieldMana){
+            playerStats.mana -= playerStats.shieldMana
+            isShielding = true;
+            playerStats.shielded = 0;
+            shieldGraphics.opacity = 1;
+            wait(playerStats.shieldDuration, () => {
+                playerStats.shielded = 1;
+                console.log('off')
+            shieldGraphics.opacity = 0;
+
+            })
+            wait(playerStats.shieldedCooldown, () => {
+                isShielding = false;
+            })
+        }
+    })
+  
     k.onKeyPress("e", () => {
-        if (canDash) {
+        if (canDash && playerStats.mana > playerStats.dashMana) {
+            playerStats.mana -= playerStats.dashMana;
             isDashing = true;
             let dir = null
             if (isKeyDown("a")) dir = "left";
@@ -451,20 +528,6 @@ const initiateMovement = (player, makesSteps = false) => {
 
         let anim = null;
 
-        if (lastDir === "left" && k.isKeyDown("left")) {
-            anim = "walkLeft";
-            player.flipX = true;
-        } 
-        else if (lastDir === "right" && k.isKeyDown("right")) {
-            anim = "walkRight";
-            player.flipX = false;
-        } 
-        else if (lastDir === "up" && k.isKeyDown("up")) {
-            anim = "walkUp";
-        } 
-        else if (lastDir === "down" && k.isKeyDown("down")) {
-            anim = "walkDown";
-        }
 
         if (!anim) {
             if (directionVector.x !== 0) {
@@ -553,7 +616,7 @@ const initiateMovement = (player, makesSteps = false) => {
 
 
 
-const spawnProjectile = (spriteName, getFrom, getDestination, spread = 0, dmg = 1, fromPlayer = true) => {
+const spawnProjectile = (spriteName, getFrom, getDestination, spread = 0, dmg = 20, fromPlayer = true, frame = 0) => {
 
     const from = getFrom();
     const destination = getDestination();
@@ -564,18 +627,24 @@ const spawnProjectile = (spriteName, getFrom, getDestination, spread = 0, dmg = 
     let projectile;
     if (fromPlayer) {
         projectile = add([
-            sprite(spriteName),
+            sprite(spriteName, {frame: frame}),
             layer("effects-front"),
             pos(from.x, from.y),
             area(),
             move(vec2(dir.x +randX, dir.y + randY), 900),           
             offscreen({ destroy: true }),
-            scale(.5),
+            scale(4),
             opacity(1),
             lifespan(2),
             anchor('center'),
+            rotate(0), // initialize rotation
+            {
+                spinSpeed: 720, // degrees per second
+                damage: dmg
+            },
             "playerProjectile"
         ]
+        
     );
     } else {
         projectile = add([
@@ -591,6 +660,9 @@ const spawnProjectile = (spriteName, getFrom, getDestination, spread = 0, dmg = 
             anchor('center')
         ], "projectile");
     }
+    projectile.onUpdate(() => {
+        projectile.angle += projectile.spinSpeed * dt()
+    })
     const shadow = createShadow(projectile, 20, true);
     projectile.shadow = shadow;
     projectile.onDestroy(() => {
@@ -609,16 +681,30 @@ const initiateBasicAttack = (player) => {
     onUpdate(() => {
         attackTimer += dt();
     })
-    onMouseDown(() => {
+    onMouseDown("left",() => {
         if (attackTimer > playerStats.attackSpeed) {
 
             const projectile = spawnProjectile(
-            'sampleProjectile',
+            'projectiles',
             () => vec2(player.pos),    
             () => mousePos(),
-            .07           
+            .07, 20           
             );
             attackTimer = 0;
+        }
+    
+    });
+    onMouseDown("right",() => {
+        if (attackTimer > playerStats.attackSpeed && playerStats.mana > 20) {
+
+            const projectile = spawnProjectile(
+            'projectiles',
+            () => vec2(player.pos),    
+            () => mousePos(),
+            .07, 80, true,           
+            2);
+            attackTimer = 0;
+            playerStats.mana -= 20;
         }
     
     });
@@ -664,7 +750,6 @@ const spawnEnemy = (enemyName, posX, posY, size = 3, player) => {
         if (enemy.aoeCircle) destroy(enemy.aoeCircle);
         if (enemy.attackHitbox) destroy(enemy.attackHitbox);
         levelStats.forestToSpawn += 1;
-        console.log('des')
     });
     const enemyHealthBar = add([
         rect(25, 3),
@@ -687,7 +772,7 @@ const spawnEnemy = (enemyName, posX, posY, size = 3, player) => {
         projectile.destroy(); // remove bullet
 
         enemy.move(dir.scale(1500)); // knockback
-        enemy.health -= playerStats.attack;
+        enemy.health -= projectile.damage;
         
         enemyHealthBar.width = (enemy.health/enemyObject.maxHealth) * 25;
         if(enemy.health <= 0) {
@@ -749,7 +834,7 @@ const spawnEnemy = (enemyName, posX, posY, size = 3, player) => {
                             const dir = player.pos.sub(enemy.pos).unit()
                             player.move(dir.scale(playerStats.speed * 10)); // knockback
                             shake(2);
-                            playerStats.health -= enemyObject.attackVal;
+                            playerStats.health -= enemyObject.attackVal * playerStats.shielded;
                             playerStats.speed =90;
                             wait(0.5, () => {
                                 playerStats.speed = playerStats.maxSpeed;
@@ -767,6 +852,66 @@ const spawnEnemy = (enemyName, posX, posY, size = 3, player) => {
 
 }
 
+const handleLevelMechanics = () => {
+    // const rock1 = add([
+    //     sprite('rock'),
+    //     k.area({
+    //             shape: new k.Rect(k.vec2(0, 5), 30, 20)
+    //     }),
+    //     pos(1300, 350),
+    //     scale(3),
+    //     anchor("center"),
+    //     layer('entities'),
+    //             body({isStatic: true}),
+
+    //     z(100),
+    // ])
+    // const rock2 = add([
+    //     sprite('rock'),
+    //     k.area({
+    //             shape: new k.Rect(k.vec2(0, 5), 30, 20)
+    //     }),
+    //     pos(1300, 200),
+    //     scale(3),
+    //     anchor("center"),
+    //     layer('entities'),
+    //     body({isStatic: true}),
+    //     z(100),
+    // ])
+    // const rock3 = add([
+    //     sprite('rock'),
+    //     k.area({
+    //             shape: new k.Rect(k.vec2(0, 5), 30, 20)
+    //     }),
+    //     pos(1300, 270),
+    //     scale(3),
+    //     anchor("center"),
+    //     layer('entities'),
+    //             body({isStatic: true}),
+    //     z(100),
+    // ])
+    // let hasShake = false;
+    // onUpdate(() => {
+    //     if (levelStats.forestDefeated >= levelStats.forestTarget && !hasShake) {
+    //         hasShake = true;
+    //         shake(120);
+    //         destroy(rock1)
+    //         destroy(rock3)
+    //         destroy(rock2)
+    //     }
+    // })
+    // const nextLevelHitbox = add([
+    //     rect(50, 300),
+    //     area(),
+    //     pos(1540, 270),
+    //     anchor("center"),
+    //     'nextLevel',
+    // ])
+    // nextLevelHitbox.onCollide('player', () => {
+    //     scene()
+    // })
+    
+}
 
 
 // FUNCTION TOOLS
@@ -819,7 +964,7 @@ function setBackgroundImage(spriteName1, spriteName2, spriteName3) {
     );
 }
 
-function addUserInterface() {
+function addUserInterface(hasProgressBar = false) {
     // const statusBackground = add([
     //     rect(64*6, 32*4),
     //     color(255, 223, 164),
@@ -857,20 +1002,73 @@ function addUserInterface() {
 
     ])
 
-    const levelProgressBar = add([
+    const skillsIndicator = add([
+        sprite('skills'),
+        area(),
+        pos(190,670),
+        anchor("center"),
+        layer("ui"),
+        z(10),
+        scale(5)
+    ])
+
+    const dashCover = add([
+        rect(72, 72),
+        color(0,0,0),
+        pos(90,706),
+        anchor("bot"),
+        layer("ui"),
+        opacity(.3),
+        z(100),
+    ])
+    const shieldCover = add([
+        rect(72, 72),
+        color(0,0,0),
+        pos(190,706),
+        anchor("bot"),
+        layer("ui"),
+        z(100),
+    ])
+    // const heavyCover = add([
+    //     rect(72, 72),
+    //     color(0,0,0),
+    //     pos(290,706),
+    //     anchor("bot"),
+    //     layer("ui"),
+    //     z(100),
+    // ])
+
+    let levelProgressBar;
+    let levelProgressBarFrame;
+    let progressBarText;
+    if (hasProgressBar) {
+    levelProgressBar = add([
         rect(410, 32),
         color(37, 175, 243),
         pos(598, 16),
         layer("ui"),
         scale(5/6),
     ])
-    const levelProgressBarFrame = add([
+    levelProgressBarFrame = add([
         sprite('progressBar'),
         pos(1536/2, 30),
         anchor("center"),
         layer("ui"),
         scale(3),
     ])
+
+    progressBarText = add([
+        text('Defeated: 30/30', {
+            font: "pixel",
+        }),
+        color(0,0,0),
+        layer("ui"),
+        z(100),
+        pos(1536/2, 32),
+        anchor("center"),
+    ])
+    }
+    
     onKeyPress('m', () => {
         if (healthBar.width < 250) {
             healthBar.width += 250*.05
@@ -888,10 +1086,14 @@ function addUserInterface() {
         }
     })
     onUpdate(() => {
+        shieldCover.height = playerStats.shieldVisualCooldown *72
+        dashCover.height = playerStats.dashVisualCooldown *72
         healthBar.width = (playerStats.health/playerStats.maxHealth) * 250
         manaBar.width = (playerStats.mana/playerStats.maxMana) * 250
-        levelProgressBar.width = 410 - (levelStats.forestDefeated/levelStats.forestTarget) * 410;
-        console.log(levelStats.forestDefeated)
+        if (hasProgressBar) {
+            // levelProgressBar.width = 410 - (levelStats.forestDefeated/levelStats.forestTarget) * 410;
+            progressBarText.text = `Defeated: ${levelStats.forestDefeated}`;
+        }
     })
 }
 
@@ -913,7 +1115,7 @@ function handleEnemySpawn(player, stageStats) {
         }
     }
     onUpdate(() => {
-        if (levelStats.forestToSpawn > 0) {
+        if (levelStats.forestToSpawn > 0 ) {
             if (rand(-1,1) > 0) {
                 if (rand(-1,1)>0){
                     spawnEnemy('spider', rand(380,1000), rand(50, 200), 3, player);
@@ -940,8 +1142,8 @@ function handleEnemySpawn(player, stageStats) {
 // forest
 k.scene("forest-1", () => {
     addWallBoundaries();
-    layers(['background', 'shadow', 'objects', 'effects-back', 'entities', 'effects-front', 'ui'], 'background');
-    addUserInterface();
+    // layers(['background', 'shadow', 'objects', 'effects-back', 'entities', 'effects-front', 'ui'], 'background');
+    addUserInterface(true);
     setBackgroundImage('bg-forest-1', 'bg-forest-base', 'bg-falling-particles')
 
     const map = [
@@ -1033,8 +1235,10 @@ k.scene("forest-1", () => {
     initiateBasicAttack(player);
     debug.inspect = false;
     
-    handleEnemySpawn(player);
-
+    handleLevelMechanics();
+    wait(4, () => {
+        handleEnemySpawn(player);
+    })
 
     onKeyPress(".", () => {
         debug.inspect = !debug.inspect;
@@ -1042,8 +1246,33 @@ k.scene("forest-1", () => {
 
 })
 
+k.scene("forest-training", () => {
+    // addWallBoundaries();
+    layers(['background', 'shadow', 'objects', 'effects-back', 'entities', 'effects-front', 'ui'], 'background');
+    // addUserInterface();
+    setBackgroundImage('Title-Screen_Final', 'bg-forest-base', 'bg-falling-particles')
+    // const player = spawnPlayer();
+    // initiateBasicAttack(player);
+    // debug.inspect = false;
+    // onKeyPress(".", () => {
+    //     debug.inspect = !debug.inspect;
+    // });
+    const playButton = add([
+        sprite("Play", {frame: 0}),
+        pos(1536/2, 864/2+200),
+        anchor("center"),
+        layer("ui"),
+        area(),
+        scale(6)
+    ])
+    playButton.onClick(() => {
+    k.go('forest-1')
+    })
 
-k.go("forest-1")
+})
+
+
+k.go("forest-training")
 
 
 
