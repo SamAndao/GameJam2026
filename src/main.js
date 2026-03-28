@@ -780,9 +780,11 @@ const spawnEnemy = (enemyName, posX, posY, size = 3, player) => {
             enemy.isDestroyed = true;
             levelStats.forestDefeated++;
             playerStats.attack += 2;
-            if (playerStats.attackSpeed > .1){
-
-                playerStats.attackSpeed -= .02
+            if (playerStats.attackSpeed > .28){
+                playerStats.attackSpeed -= .01
+            }
+            if (playerStats.maxSpeed < 500){
+                playerStats.maxSpeed += 10
             }
         }
     })
